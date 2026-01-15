@@ -2,7 +2,16 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { UserPreferences, Recommendation } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
+// Safe access to API Key
+const getApiKey = () => {
+  try {
+    return process.env.API_KEY || '';
+  } catch (e) {
+    return '';
+  }
+};
+
+const ai = new GoogleGenAI({ apiKey: getApiKey() });
 
 export const getRecommendations = async (prefs: UserPreferences): Promise<Recommendation[]> => {
   const eraContext = prefs.era_preference.map(e => {
@@ -53,6 +62,11 @@ export const getRecommendationsByMovies = async (movieList: string): Promise<Rec
 };
 
 const executeGeminiRequest = async (prompt: string): Promise<Recommendation[]> => {
+  if (!getApiKey()) {
+    console.error("Gemini API Key is missing. Please set API_KEY in environment variables.");
+    return [];
+  }
+
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',

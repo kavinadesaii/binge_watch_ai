@@ -1,5 +1,11 @@
 
-const API_KEY = process.env.OMDB_API_KEY || 'eaad6489';
+const getApiKey = () => {
+  try {
+    return process.env.OMDB_API_KEY || 'eaad6489';
+  } catch (e) {
+    return 'eaad6489'; // Fallback to provided key
+  }
+};
 
 export interface OMDBMetadata {
   poster: string | null;
@@ -7,6 +13,7 @@ export interface OMDBMetadata {
 }
 
 export const fetchOMDBMetadata = async (title: string, year: number): Promise<OMDBMetadata | null> => {
+  const API_KEY = getApiKey();
   try {
     const response = await fetch(
       `https://www.omdbapi.com/?t=${encodeURIComponent(title)}&y=${year}&apikey=${API_KEY}`
