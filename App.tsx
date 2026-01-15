@@ -33,6 +33,7 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [visibleCount, setVisibleCount] = useState(3);
   const [activeMode, setActiveMode] = useState<'questionnaire' | 'fun' | null>(null);
+  const [openHowItWorksStep, setOpenHowItWorksStep] = useState<number | null>(null);
 
   // --- Handlers ---
   const toggleVibe = (vibe: VibeType) => {
@@ -225,6 +226,58 @@ const App: React.FC = () => {
                   Match Favorites <span className="ml-2 text-lg">→</span>
                 </div>
               </button>
+            </div>
+
+            {/* How Binge Watch AI Works - SEO Accordion Section */}
+            <div className="mt-24 max-w-3xl mx-auto pb-20">
+              <h2 className="text-2xl font-bold mb-8 text-center text-zinc-300 uppercase tracking-[0.2em] text-sm">How Binge Watch AI Works</h2>
+              <div className="space-y-4">
+                {/* Step 1 */}
+                <div className="border border-white/10 rounded-2xl bg-zinc-900/40 overflow-hidden">
+                  <button 
+                    onClick={() => setOpenHowItWorksStep(openHowItWorksStep === 0 ? null : 0)}
+                    className="w-full px-6 py-5 text-left flex justify-between items-center hover:bg-white/5 transition-colors group"
+                  >
+                    <span className="font-bold text-zinc-200">Step 1 – Choose how you want recommendations</span>
+                    <span className={`text-zinc-500 transform transition-transform duration-300 ${openHowItWorksStep === 0 ? 'rotate-180 text-netflix-red' : ''}`}>▼</span>
+                  </button>
+                  {openHowItWorksStep === 0 && (
+                    <div className="px-6 pb-6 text-zinc-400 text-sm leading-relaxed animate-fade-in">
+                      Users can either answer a few quick questions about their mood or enter movies they already like.
+                    </div>
+                  )}
+                </div>
+                {/* Step 2 */}
+                <div className="border border-white/10 rounded-2xl bg-zinc-900/40 overflow-hidden">
+                  <button 
+                    onClick={() => setOpenHowItWorksStep(openHowItWorksStep === 1 ? null : 1)}
+                    className="w-full px-6 py-5 text-left flex justify-between items-center hover:bg-white/5 transition-colors group"
+                  >
+                    <span className="font-bold text-zinc-200">Step 2 – AI analyzes your preferences</span>
+                    <span className={`text-zinc-500 transform transition-transform duration-300 ${openHowItWorksStep === 1 ? 'rotate-180 text-netflix-red' : ''}`}>▼</span>
+                  </button>
+                  {openHowItWorksStep === 1 && (
+                    <div className="px-6 pb-6 text-zinc-400 text-sm leading-relaxed animate-fade-in">
+                      Binge Watch AI uses artificial intelligence to understand genres, themes, and patterns across movies and TV shows, including thrillers, comedies, series, and popular streaming content.
+                    </div>
+                  )}
+                </div>
+                {/* Step 3 */}
+                <div className="border border-white/10 rounded-2xl bg-zinc-900/40 overflow-hidden">
+                  <button 
+                    onClick={() => setOpenHowItWorksStep(openHowItWorksStep === 2 ? null : 2)}
+                    className="w-full px-6 py-5 text-left flex justify-between items-center hover:bg-white/5 transition-colors group"
+                  >
+                    <span className="font-bold text-zinc-200">Step 3 – Get instant recommendations</span>
+                    <span className={`text-zinc-500 transform transition-transform duration-300 ${openHowItWorksStep === 2 ? 'rotate-180 text-netflix-red' : ''}`}>▼</span>
+                  </button>
+                  {openHowItWorksStep === 2 && (
+                    <div className="px-6 pb-6 text-zinc-400 text-sm leading-relaxed animate-fade-in">
+                      Users receive personalized suggestions for movies and TV shows to watch next, including top picks, trending titles, and highly rated content across platforms like Netflix and Amazon Prime — all in under 60 seconds.
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         );
