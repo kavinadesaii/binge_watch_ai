@@ -1,5 +1,5 @@
 
-const API_KEY = 'eaad6489';
+const API_KEY = process.env.OMDB_API_KEY || 'eaad6489';
 
 export interface OMDBMetadata {
   poster: string | null;

@@ -180,15 +180,15 @@ const App: React.FC = () => {
                 }}
                 className="group relative p-10 rounded-[2.5rem] border-2 border-white/10 bg-zinc-900/40 hover:border-netflix-red/50 hover:bg-zinc-800/80 transition-all duration-500 text-left hover:-translate-y-2 flex flex-col h-full shadow-2xl overflow-hidden"
               >
-                <div className="absolute top-8 right-8 bg-zinc-950/80 border border-white/10 rounded-lg px-3 py-1.5 text-[10px] font-black tracking-[0.2em] text-zinc-400 group-hover:text-netflix-red transition-colors backdrop-blur-md">
+                <div className="absolute top-8 right-8 bg-zinc-950/80 border border-white/10 rounded-lg px-3 py-1.5 text-[10px] font-black tracking-[0.2em] text-zinc-400 group-hover:text-netflix-red transition-colors backdrop-blur-md z-10">
                   ⏱️ ~60 SECONDS
                 </div>
-                <div className="relative mb-8">
+                <div className="relative mb-8 w-fit">
                   <div className="text-7xl transform group-hover:scale-110 group-hover:rotate-6 transition-transform duration-700 ease-out">
                     🎭
                   </div>
-                  <div className="absolute -top-2 -right-4 text-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 delay-100">🔥</div>
-                  <div className="absolute bottom-0 -left-6 text-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 delay-200">🎬</div>
+                  <div className="absolute -top-4 right-0 text-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 delay-100 pointer-events-none">🔥</div>
+                  <div className="absolute bottom-0 -left-6 text-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 delay-200 pointer-events-none">🎬</div>
                 </div>
                 <h3 className="text-3xl font-black mb-4 tracking-tight">🎭 Tell Us Your Mood</h3>
                 <p className="text-zinc-400 text-lg leading-relaxed mb-8 flex-grow">
@@ -207,15 +207,15 @@ const App: React.FC = () => {
                 }}
                 className="group relative p-10 rounded-[2.5rem] border-2 border-white/10 bg-zinc-900/40 hover:border-netflix-red/50 hover:bg-zinc-800/80 transition-all duration-500 text-left hover:-translate-y-2 flex flex-col h-full shadow-2xl overflow-hidden"
               >
-                <div className="absolute top-8 right-8 bg-zinc-950/80 border border-white/10 rounded-lg px-3 py-1.5 text-[10px] font-black tracking-[0.2em] text-zinc-400 group-hover:text-netflix-red transition-colors backdrop-blur-md">
+                <div className="absolute top-8 right-8 bg-zinc-950/80 border border-white/10 rounded-lg px-3 py-1.5 text-[10px] font-black tracking-[0.2em] text-zinc-400 group-hover:text-netflix-red transition-colors backdrop-blur-md z-10">
                   ⏱️ ~30 SECONDS
                 </div>
-                <div className="relative mb-8">
+                <div className="relative mb-8 w-fit">
                   <div className="text-7xl transform group-hover:scale-110 group-hover:-rotate-6 transition-transform duration-700 ease-out">
                     💖
                   </div>
-                  <div className="absolute -top-2 -right-4 text-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 delay-100">🍿</div>
-                  <div className="absolute bottom-0 -left-6 text-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 delay-200">🎞️</div>
+                  <div className="absolute -top-4 right-0 text-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 delay-100 pointer-events-none">🍿</div>
+                  <div className="absolute bottom-0 -left-6 text-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 delay-200 pointer-events-none">🎞️</div>
                 </div>
                 <h3 className="text-3xl font-black mb-4 tracking-tight">💖 Love Some Movies? Start There</h3>
                 <p className="text-zinc-400 text-lg leading-relaxed mb-8 flex-grow">
