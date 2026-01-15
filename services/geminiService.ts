@@ -53,13 +53,12 @@ export const getRecommendationsByMovies = async (movieList: string): Promise<Rec
 };
 
 const executeGeminiRequest = async (prompt: string, model: string, useThinking: boolean = false): Promise<Recommendation[]> => {
-  // Check process.env.API_KEY first as per guidelines
-  const apiKey = process.env.API_KEY;
+  // Check for the standard process.env.API_KEY and the Vite-exposed VITE_API_KEY
+  // Note: Vite replaces 'process.env.VITE_API_KEY' with the actual value at build time
+  const apiKey = (process.env as any).VITE_API_KEY || (process.env as any).API_KEY;
   
-  console.log("Checking API Configuration...");
-
   if (!apiKey || apiKey === "undefined" || apiKey === "null" || apiKey.trim() === "") {
-    console.error("API_KEY is missing. Current process.env:", process.env);
+    console.error("Critical: API_KEY is missing. In Vercel, ensure you renamed it to VITE_API_KEY and clicked Redeploy.");
     throw new Error("API_KEY_MISSING");
   }
 

@@ -34,13 +34,12 @@ const App: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [visibleCount, setVisibleCount] = useState(3);
   const [activeMode, setActiveMode] = useState<'questionnaire' | 'fun' | null>(null);
-  const [openHowItWorksStep, setOpenHowItWorksStep] = useState<number | null>(null);
 
   // Listen for global unhandled errors
   useEffect(() => {
     const handleGlobalError = () => {
       setIsLoading(false);
-      setError("A connection error occurred. Please check your API key and redeploy.");
+      setError("A connection error occurred. Please verify your VITE_API_KEY.");
     };
     window.addEventListener('app-error' as any, handleGlobalError);
     return () => window.removeEventListener('app-error' as any, handleGlobalError);
@@ -125,9 +124,9 @@ const App: React.FC = () => {
     } catch (err: any) {
       console.error("Generation failed:", err);
       if (err.message === "API_KEY_MISSING" || err.message?.includes("API Key")) {
-        setError("API Key Error: Please ensure 'API_KEY' is set in Vercel AND that you have Redeployed.");
+        setError("API Key Error: VITE_API_KEY prefix required.");
       } else {
-        setError("We encountered an issue. Please try again or check your configuration.");
+        setError("We encountered an issue. Please try again.");
       }
     } finally {
       setIsLoading(false);
@@ -205,19 +204,19 @@ const App: React.FC = () => {
                 className="group relative p-10 rounded-[2.5rem] border-2 border-white/10 bg-zinc-900/40 hover:border-netflix-red/50 hover:bg-zinc-800/80 transition-all duration-500 text-left hover:-translate-y-2 flex flex-col h-full shadow-2xl overflow-hidden"
               >
                 <div className="absolute top-8 right-8 bg-zinc-950/80 border border-white/10 rounded-lg px-3 py-1.5 text-[10px] font-black tracking-[0.2em] text-zinc-400 group-hover:text-netflix-red transition-colors backdrop-blur-md z-10">
-                  ⏱️ ~60 SECONDS
+                  🎭 SMART QUIZ
                 </div>
                 <div className="relative mb-8 w-fit">
                   <div className="text-7xl transform group-hover:scale-110 group-hover:rotate-6 transition-transform duration-700 ease-out">
                     🎭
                   </div>
                 </div>
-                <h3 className="text-3xl font-black mb-4 tracking-tight">🎭 Tell Us Your Mood</h3>
+                <h3 className="text-3xl font-black mb-4 tracking-tight">Tell Us Your Mood</h3>
                 <p className="text-zinc-400 text-lg leading-relaxed mb-8 flex-grow">
                   Answer a few fun questions and get spot-on picks tailored to your vibe.
                 </p>
                 <div className="flex items-center text-netflix-red font-black uppercase tracking-widest text-[11px] group-hover:translate-x-3 transition-transform duration-300">
-                  Select Vibe <span className="ml-2 text-lg">→</span>
+                  Start Quiz <span className="ml-2 text-lg">→</span>
                 </div>
               </button>
 
@@ -229,19 +228,19 @@ const App: React.FC = () => {
                 className="group relative p-10 rounded-[2.5rem] border-2 border-white/10 bg-zinc-900/40 hover:border-netflix-red/50 hover:bg-zinc-800/80 transition-all duration-500 text-left hover:-translate-y-2 flex flex-col h-full shadow-2xl overflow-hidden"
               >
                 <div className="absolute top-8 right-8 bg-zinc-950/80 border border-white/10 rounded-lg px-3 py-1.5 text-[10px] font-black tracking-[0.2em] text-zinc-400 group-hover:text-netflix-red transition-colors backdrop-blur-md z-10">
-                  ⏱️ ~30 SECONDS
+                  💖 FAST MATCH
                 </div>
                 <div className="relative mb-8 w-fit">
                   <div className="text-7xl transform group-hover:scale-110 group-hover:-rotate-6 transition-transform duration-700 ease-out">
                     💖
                   </div>
                 </div>
-                <h3 className="text-3xl font-black mb-4 tracking-tight">💖 Start with Favorites</h3>
+                <h3 className="text-3xl font-black mb-4 tracking-tight">Start with Favorites</h3>
                 <p className="text-zinc-400 text-lg leading-relaxed mb-8 flex-grow">
-                  Type 2–5 movies you love and we’ll decode your taste.
+                  Type 2–5 movies you love and we’ll decode your unique taste profile.
                 </p>
                 <div className="flex items-center text-netflix-red font-black uppercase tracking-widest text-[11px] group-hover:translate-x-3 transition-transform duration-300">
-                  Match Favorites <span className="ml-2 text-lg">→</span>
+                  Enter Titles <span className="ml-2 text-lg">→</span>
                 </div>
               </button>
             </div>
@@ -458,12 +457,17 @@ const App: React.FC = () => {
             {error ? (
               <div className="max-w-2xl mx-auto p-12 bg-zinc-900/50 border border-red-500/30 rounded-3xl text-center mb-12 backdrop-blur-sm">
                 <div className="text-5xl mb-6">🔑</div>
-                <h3 className="text-2xl font-bold text-white mb-4">Configuration Step Required</h3>
+                <h3 className="text-2xl font-bold text-white mb-4">API Key Setup Required</h3>
                 <p className="text-zinc-400 text-lg mb-8 leading-relaxed">
-                  You added the key, but the app needs a <b>Fresh Deployment</b> to see it. <br/><br/>
-                  1. Go to your <b>Vercel Project</b> <br/>
-                  2. Go to the <b>Deployments</b> tab <br/>
-                  3. Find your latest deployment and click <b>Redeploy</b> (under the three dots ⋯ menu).
+                  Your project is successfully deployed, but it can't "see" your API keys yet. <br/><br/>
+                  Ensure you added them with the <b>VITE_</b> prefix in Vercel:
+                </p>
+                <div className="bg-black/50 p-6 rounded-xl mb-8 text-left border border-white/10 font-mono text-sm space-y-2">
+                  <div className="flex justify-between text-zinc-400"><span>Variable Name:</span> <span className="text-green-400 font-bold">VITE_API_KEY</span></div>
+                  <div className="flex justify-between text-zinc-400"><span>Target:</span> <span>Production</span></div>
+                </div>
+                <p className="text-zinc-500 text-sm mb-8">
+                   If you just added it, you must click <b>Redeploy</b> in your Vercel dashboard.
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
                    <button 
@@ -476,7 +480,7 @@ const App: React.FC = () => {
                     onClick={() => window.location.reload()}
                     className="bg-zinc-800 text-white px-8 py-3 rounded-full font-bold hover:bg-zinc-700 transition-colors"
                   >
-                    Refresh Page
+                    Check Again
                   </button>
                 </div>
               </div>

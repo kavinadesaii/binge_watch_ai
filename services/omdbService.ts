@@ -1,9 +1,11 @@
 
 const getApiKey = () => {
   try {
-    return process.env.OMDB_API_KEY || 'eaad6489';
+    // Check for Vite-exposed key first, then fallback to provided default
+    // @ts-ignore
+    return process.env.VITE_OMDB_API_KEY || process.env.OMDB_API_KEY || 'eaad6489';
   } catch (e) {
-    return 'eaad6489'; // Fallback to provided key
+    return 'eaad6489'; 
   }
 };
 
