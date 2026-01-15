@@ -49,20 +49,13 @@ export const getRecommendationsByMovies = async (movieList: string): Promise<Rec
   - Return the response in the exact JSON schema.
   `;
 
-  return executeGeminiRequest(prompt, 'gemini-3-pro-preview');
+  // Use Pro model with thinking budget for taste analysis
+  return executeGeminiRequest(prompt, 'gemini-3-pro-preview', true);
 };
 
-const executeGeminiRequest = async (prompt: string, model: string): Promise<Recommendation[]> => {
-  // Access the API Key from environment variables
-  const apiKey = process.env.API_KEY;
-  
-  if (!apiKey) {
-    console.error("Gemini API Key is missing. Please check your Vercel Environment Variables for API_KEY.");
-    return [];
-  }
-
-  // Create a fresh instance for every request to ensure reliability in serverless/browser environments
-  const ai = new GoogleGenAI({ apiKey });
+const executeGeminiRequest = async (prompt: string, model: string, useThinking: boolean = false): Promise<Recommendation[]> => {
+  // Always use the required initialization format
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
   try {
     const response = await ai.models.generateContent({
@@ -70,6 +63,7 @@ const executeGeminiRequest = async (prompt: string, model: string): Promise<Reco
       contents: prompt,
       config: {
         responseMimeType: "application/json",
+        thinkingConfig: useThinking ? { thinkingBudget: 4000 } : undefined,
         responseSchema: {
           type: Type.OBJECT,
           properties: {
@@ -103,8 +97,13 @@ const executeGeminiRequest = async (prompt: string, model: string): Promise<Reco
       return [];
     }
 
-    const data = JSON.parse(text);
-    return data.recommendations || [];
+    try {
+      const data = JSON.parse(text);
+      return data.recommendations || [];
+    } catch (parseError) {
+      console.error("Failed to parse Gemini JSON response:", text, parseError);
+      return [];
+    }
   } catch (error) {
     console.error("Gemini API failure:", error);
     return [];
