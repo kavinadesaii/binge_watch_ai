@@ -1,9 +1,9 @@
 
 const getApiKey = () => {
   try {
-    // Check for Vite-exposed key first, then fallback to provided default
+    // Priority: Vite metadata -> shimmed process -> fallback
     // @ts-ignore
-    return process.env.VITE_OMDB_API_KEY || process.env.OMDB_API_KEY || 'eaad6489';
+    return import.meta.env?.VITE_OMDB_API_KEY || (process.env as any).VITE_OMDB_API_KEY || 'eaad6489';
   } catch (e) {
     return 'eaad6489'; 
   }
