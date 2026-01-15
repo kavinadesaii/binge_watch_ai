@@ -2,17 +2,6 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { UserPreferences, Recommendation } from "../types";
 
-// Safe access to API Key
-const getApiKey = () => {
-  try {
-    return process.env.API_KEY || '';
-  } catch (e) {
-    return '';
-  }
-};
-
-const ai = new GoogleGenAI({ apiKey: getApiKey() });
-
 export const getRecommendations = async (prefs: UserPreferences): Promise<Recommendation[]> => {
   const eraContext = prefs.era_preference.map(e => {
     if (e === 'Retro vibe') return 'released before year 2000';
@@ -37,10 +26,11 @@ export const getRecommendations = async (prefs: UserPreferences): Promise<Recomm
   - Provide a balanced mix of hits and hidden gems.
   - Internal relevance_score should be 0-100.
   - Sort results by relevance_score descending.
+  - The "type" field MUST be either 'movie' or 'series'.
   - Return in the exact JSON schema requested.
   `;
 
-  return executeGeminiRequest(prompt);
+  return executeGeminiRequest(prompt, 'gemini-3-flash-preview');
 };
 
 export const getRecommendationsByMovies = async (movieList: string): Promise<Recommendation[]> => {
@@ -55,21 +45,28 @@ export const getRecommendationsByMovies = async (movieList: string): Promise<Rec
   - ❌ Do NOT recommend unreleased or upcoming movies.
   - ❌ Avoid ultra-generic picks (e.g., Inception, Shawshank, Avengers) unless essential.
   - Respect the original language/vibe if evident but feel free to suggest global gems.
+  - The "type" field MUST be either 'movie' or 'series'.
   - Return the response in the exact JSON schema.
   `;
 
-  return executeGeminiRequest(prompt);
+  return executeGeminiRequest(prompt, 'gemini-3-pro-preview');
 };
 
-const executeGeminiRequest = async (prompt: string): Promise<Recommendation[]> => {
-  if (!getApiKey()) {
-    console.error("Gemini API Key is missing. Please set API_KEY in environment variables.");
+const executeGeminiRequest = async (prompt: string, model: string): Promise<Recommendation[]> => {
+  // Access the API Key from environment variables
+  const apiKey = process.env.API_KEY;
+  
+  if (!apiKey) {
+    console.error("Gemini API Key is missing. Please check your Vercel Environment Variables for API_KEY.");
     return [];
   }
 
+  // Create a fresh instance for every request to ensure reliability in serverless/browser environments
+  const ai = new GoogleGenAI({ apiKey });
+
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: model,
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -82,7 +79,10 @@ const executeGeminiRequest = async (prompt: string): Promise<Recommendation[]> =
                 type: Type.OBJECT,
                 properties: {
                   title: { type: Type.STRING },
-                  type: { type: Type.STRING },
+                  type: { 
+                    type: Type.STRING,
+                    description: "Must be 'movie' or 'series'"
+                  },
                   language: { type: Type.STRING },
                   release_year: { type: Type.INTEGER },
                   relevance_score: { type: Type.INTEGER },
@@ -97,10 +97,16 @@ const executeGeminiRequest = async (prompt: string): Promise<Recommendation[]> =
       }
     });
 
-    const data = JSON.parse(response.text || '{"recommendations":[]}');
-    return data.recommendations;
+    const text = response.text;
+    if (!text) {
+      console.error("Gemini API returned an empty text response.");
+      return [];
+    }
+
+    const data = JSON.parse(text);
+    return data.recommendations || [];
   } catch (error) {
-    console.error("Gemini Error:", error);
+    console.error("Gemini API failure:", error);
     return [];
   }
 };
