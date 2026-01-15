@@ -12,9 +12,12 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     
-    <!-- Shim process for browser environment -->
+    <!-- Shim process for browser environment safely -->
     <script>
-      window.process = window.process || { env: {} };
+      (function() {
+        window.process = window.process || {};
+        window.process.env = window.process.env || {};
+      })();
       
       // Global error handlers to prevent infinite loading states
       window.addEventListener('error', function(event) {
@@ -23,7 +26,6 @@
 
       window.addEventListener('unhandledrejection', function(event) {
         console.error('Unhandled Promise Rejection:', event.reason);
-        // Dispatch a custom event that the app can listen to if needed
         window.dispatchEvent(new CustomEvent('app-error', { detail: event.reason }));
       });
     </script>

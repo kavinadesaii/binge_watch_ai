@@ -40,7 +40,7 @@ const App: React.FC = () => {
   useEffect(() => {
     const handleGlobalError = () => {
       setIsLoading(false);
-      setError("A connection error occurred. Please check your API key.");
+      setError("A connection error occurred. Please check your API key and redeploy.");
     };
     window.addEventListener('app-error' as any, handleGlobalError);
     return () => window.removeEventListener('app-error' as any, handleGlobalError);
@@ -125,12 +125,11 @@ const App: React.FC = () => {
     } catch (err: any) {
       console.error("Generation failed:", err);
       if (err.message === "API_KEY_MISSING" || err.message?.includes("API Key")) {
-        setError("API Key Error: Please ensure your 'API_KEY' is correctly set in Vercel environment variables.");
+        setError("API Key Error: Please ensure 'API_KEY' is set in Vercel AND that you have Redeployed.");
       } else {
-        setError("We encountered an issue generating your list. Please try again.");
+        setError("We encountered an issue. Please try again or check your configuration.");
       }
     } finally {
-      // Ensure loading state is ALWAYS cleared
       setIsLoading(false);
     }
   };
@@ -155,10 +154,9 @@ const App: React.FC = () => {
     setMetadataMap({});
     setVisibleCount(3);
     setActiveMode(null);
-    setIsLoading(false); // Safety reset
+    setIsLoading(false);
   };
 
-  // --- Shared Components ---
   const NewMoodButton = ({ className = "", label = "New Mood" }) => (
     <button 
       onClick={handleNewMood} 
@@ -166,7 +164,6 @@ const App: React.FC = () => {
     >
       <span className="font-extrabold text-sm tracking-widest uppercase">{label}</span>
       <span className="text-xl group-hover:rotate-180 transition-transform duration-500">🔄</span>
-      <div className="absolute -inset-1 bg-white/20 rounded-full blur opacity-0 group-hover:opacity-100 transition-opacity"></div>
     </button>
   );
 
@@ -185,7 +182,6 @@ const App: React.FC = () => {
     </div>
   );
 
-  // --- Rendering Helpers ---
   const renderStep = () => {
     switch (step) {
       case AppStep.ENTRY:
@@ -197,8 +193,6 @@ const App: React.FC = () => {
                 <span>⏱️ Takes less than a minute</span>
                 <span className="text-zinc-600 px-2">•</span>
                 <span>3 highly-matched recommendations</span>
-                <span className="text-zinc-600 px-2">•</span>
-                <span>No endless scrolling</span>
               </div>
             </div>
 
@@ -462,18 +456,29 @@ const App: React.FC = () => {
             </div>
 
             {error ? (
-              <div className="max-w-2xl mx-auto p-12 bg-red-900/10 border border-red-500/50 rounded-3xl text-center mb-12">
+              <div className="max-w-2xl mx-auto p-12 bg-zinc-900/50 border border-red-500/30 rounded-3xl text-center mb-12 backdrop-blur-sm">
                 <div className="text-5xl mb-6">🔑</div>
-                <h3 className="text-2xl font-bold text-white mb-4">Configuration Required</h3>
+                <h3 className="text-2xl font-bold text-white mb-4">Configuration Step Required</h3>
                 <p className="text-zinc-400 text-lg mb-8 leading-relaxed">
-                  Your API Key is missing. To fix this, go to your <b>Vercel Project Settings</b>, add an environment variable named <code className="bg-white/10 px-2 py-1 rounded">API_KEY</code>, and then <b>Redeploy</b> your project.
+                  You added the key, but the app needs a <b>Fresh Deployment</b> to see it. <br/><br/>
+                  1. Go to your <b>Vercel Project</b> <br/>
+                  2. Go to the <b>Deployments</b> tab <br/>
+                  3. Find your latest deployment and click <b>Redeploy</b> (under the three dots ⋯ menu).
                 </p>
-                <button 
-                  onClick={handleNewMood}
-                  className="bg-white text-black px-8 py-3 rounded-full font-bold hover:bg-zinc-200 transition-colors"
-                >
-                  Back to Home
-                </button>
+                <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                   <button 
+                    onClick={handleNewMood}
+                    className="bg-white text-black px-8 py-3 rounded-full font-bold hover:bg-zinc-200 transition-colors"
+                  >
+                    Back to Home
+                  </button>
+                  <button 
+                    onClick={() => window.location.reload()}
+                    className="bg-zinc-800 text-white px-8 py-3 rounded-full font-bold hover:bg-zinc-700 transition-colors"
+                  >
+                    Refresh Page
+                  </button>
+                </div>
               </div>
             ) : isLoading ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">

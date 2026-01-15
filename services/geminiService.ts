@@ -53,12 +53,13 @@ export const getRecommendationsByMovies = async (movieList: string): Promise<Rec
 };
 
 const executeGeminiRequest = async (prompt: string, model: string, useThinking: boolean = false): Promise<Recommendation[]> => {
-  // Get API key and clean it (sometimes build tools wrap it in quotes or strings)
-  let apiKey = process.env.API_KEY;
+  // Check process.env.API_KEY first as per guidelines
+  const apiKey = process.env.API_KEY;
   
-  // Robust check for missing or invalid key strings
+  console.log("Checking API Configuration...");
+
   if (!apiKey || apiKey === "undefined" || apiKey === "null" || apiKey.trim() === "") {
-    console.error("CRITICAL: API_KEY is missing or invalid in environment.");
+    console.error("API_KEY is missing. Current process.env:", process.env);
     throw new Error("API_KEY_MISSING");
   }
 
@@ -103,7 +104,6 @@ const executeGeminiRequest = async (prompt: string, model: string, useThinking: 
     const data = JSON.parse(text);
     return data.recommendations || [];
   } catch (error: any) {
-    // Catch the specific error the user is seeing from the SDK
     if (error?.message?.includes("API Key must be set")) {
       throw new Error("API_KEY_MISSING");
     }
