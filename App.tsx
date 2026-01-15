@@ -31,9 +31,20 @@ const App: React.FC = () => {
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [metadataMap, setMetadataMap] = useState<Record<string, OMDBMetadata>>({});
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [visibleCount, setVisibleCount] = useState(3);
   const [activeMode, setActiveMode] = useState<'questionnaire' | 'fun' | null>(null);
   const [openHowItWorksStep, setOpenHowItWorksStep] = useState<number | null>(null);
+
+  // Listen for global unhandled errors
+  useEffect(() => {
+    const handleGlobalError = () => {
+      setIsLoading(false);
+      setError("A connection error occurred. Please check your API key.");
+    };
+    window.addEventListener('app-error' as any, handleGlobalError);
+    return () => window.removeEventListener('app-error' as any, handleGlobalError);
+  }, []);
 
   // --- Handlers ---
   const toggleVibe = (vibe: VibeType) => {
@@ -80,31 +91,48 @@ const App: React.FC = () => {
     trackEvent('generate_clicked', { mode: activeMode });
     setStep(AppStep.RESULTS);
     setIsLoading(true);
+    setError(null);
     const generationStart = Date.now();
 
-    let results: Recommendation[] = [];
-    if (activeMode === 'fun') {
-      results = await getRecommendationsByMovies(prefs.input_movies || '');
-      setVisibleCount(5); 
-    } else {
-      results = await getRecommendations(prefs);
-      setVisibleCount(3); 
-    }
-
-    setRecommendations(results);
-    setIsLoading(false);
-
-    trackEvent('recommendations_generated', {
-      count_returned: results.length,
-      latency_ms: Date.now() - generationStart
-    });
-
-    results.forEach(async (rec) => {
-      const meta = await fetchOMDBMetadata(rec.title, rec.release_year);
-      if (meta) {
-        setMetadataMap(prev => ({ ...prev, [rec.title]: meta }));
+    try {
+      let results: Recommendation[] = [];
+      if (activeMode === 'fun') {
+        results = await getRecommendationsByMovies(prefs.input_movies || '');
+        setVisibleCount(5); 
+      } else {
+        results = await getRecommendations(prefs);
+        setVisibleCount(3); 
       }
-    });
+
+      setRecommendations(results);
+
+      trackEvent('recommendations_generated', {
+        count_returned: results.length,
+        latency_ms: Date.now() - generationStart
+      });
+
+      // Metadata fetching is non-blocking to UI
+      results.forEach(async (rec) => {
+        try {
+          const meta = await fetchOMDBMetadata(rec.title, rec.release_year);
+          if (meta) {
+            setMetadataMap(prev => ({ ...prev, [rec.title]: meta }));
+          }
+        } catch (e) {
+          console.warn(`Failed to fetch metadata for ${rec.title}`);
+        }
+      });
+    } catch (err: any) {
+      console.error("Generation failed:", err);
+      if (err.message === "API_KEY_MISSING" || err.message?.includes("API Key")) {
+        setError("API Key Error: Please ensure your 'API_KEY' is correctly set in Vercel environment variables.");
+      } else {
+        setError("We encountered an issue generating your list. Please try again.");
+      }
+    } finally {
+      // Ensure loading state is ALWAYS cleared
+      setIsLoading(false);
+    }
   };
 
   const handleShowMore = () => {
@@ -121,11 +149,13 @@ const App: React.FC = () => {
   const handleNewMood = () => {
     trackEvent('new_mood_clicked');
     setStep(AppStep.ENTRY);
+    setError(null);
     setPrefs({ vibes: [], content_type: [], language_preference: [], era_preference: [], magic_text: '', input_movies: '' });
     setRecommendations([]);
     setMetadataMap({});
     setVisibleCount(3);
     setActiveMode(null);
+    setIsLoading(false); // Safety reset
   };
 
   // --- Shared Components ---
@@ -173,7 +203,6 @@ const App: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-16">
-              {/* Option 1: Questionnaire */}
               <button 
                 onClick={() => {
                   setActiveMode('questionnaire');
@@ -188,8 +217,6 @@ const App: React.FC = () => {
                   <div className="text-7xl transform group-hover:scale-110 group-hover:rotate-6 transition-transform duration-700 ease-out">
                     🎭
                   </div>
-                  <div className="absolute -top-4 right-0 text-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 delay-100 pointer-events-none">🔥</div>
-                  <div className="absolute bottom-0 -left-6 text-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 delay-200 pointer-events-none">🎬</div>
                 </div>
                 <h3 className="text-3xl font-black mb-4 tracking-tight">🎭 Tell Us Your Mood</h3>
                 <p className="text-zinc-400 text-lg leading-relaxed mb-8 flex-grow">
@@ -200,7 +227,6 @@ const App: React.FC = () => {
                 </div>
               </button>
 
-              {/* Option 2: Favorites */}
               <button 
                 onClick={() => {
                   setActiveMode('fun');
@@ -215,10 +241,8 @@ const App: React.FC = () => {
                   <div className="text-7xl transform group-hover:scale-110 group-hover:-rotate-6 transition-transform duration-700 ease-out">
                     💖
                   </div>
-                  <div className="absolute -top-4 right-0 text-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 delay-100 pointer-events-none">🍿</div>
-                  <div className="absolute bottom-0 -left-6 text-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 delay-200 pointer-events-none">🎞️</div>
                 </div>
-                <h3 className="text-3xl font-black mb-4 tracking-tight">💖 Love Some Movies? Start There</h3>
+                <h3 className="text-3xl font-black mb-4 tracking-tight">💖 Start with Favorites</h3>
                 <p className="text-zinc-400 text-lg leading-relaxed mb-8 flex-grow">
                   Type 2–5 movies you love and we’ll decode your taste.
                 </p>
@@ -226,58 +250,6 @@ const App: React.FC = () => {
                   Match Favorites <span className="ml-2 text-lg">→</span>
                 </div>
               </button>
-            </div>
-
-            {/* How Binge Watch AI Works - SEO Accordion Section */}
-            <div className="mt-24 max-w-3xl mx-auto pb-20">
-              <h2 className="text-2xl font-bold mb-8 text-center text-zinc-300 uppercase tracking-[0.2em] text-sm">How Binge Watch AI Works</h2>
-              <div className="space-y-4">
-                {/* Step 1 */}
-                <div className="border border-white/10 rounded-2xl bg-zinc-900/40 overflow-hidden">
-                  <button 
-                    onClick={() => setOpenHowItWorksStep(openHowItWorksStep === 0 ? null : 0)}
-                    className="w-full px-6 py-5 text-left flex justify-between items-center hover:bg-white/5 transition-colors group"
-                  >
-                    <span className="font-bold text-zinc-200">Step 1 – Choose how you want recommendations</span>
-                    <span className={`text-zinc-500 transform transition-transform duration-300 ${openHowItWorksStep === 0 ? 'rotate-180 text-netflix-red' : ''}`}>▼</span>
-                  </button>
-                  {openHowItWorksStep === 0 && (
-                    <div className="px-6 pb-6 text-zinc-400 text-sm leading-relaxed animate-fade-in">
-                      Users can either answer a few quick questions about their mood or enter movies they already like.
-                    </div>
-                  )}
-                </div>
-                {/* Step 2 */}
-                <div className="border border-white/10 rounded-2xl bg-zinc-900/40 overflow-hidden">
-                  <button 
-                    onClick={() => setOpenHowItWorksStep(openHowItWorksStep === 1 ? null : 1)}
-                    className="w-full px-6 py-5 text-left flex justify-between items-center hover:bg-white/5 transition-colors group"
-                  >
-                    <span className="font-bold text-zinc-200">Step 2 – AI analyzes your preferences</span>
-                    <span className={`text-zinc-500 transform transition-transform duration-300 ${openHowItWorksStep === 1 ? 'rotate-180 text-netflix-red' : ''}`}>▼</span>
-                  </button>
-                  {openHowItWorksStep === 1 && (
-                    <div className="px-6 pb-6 text-zinc-400 text-sm leading-relaxed animate-fade-in">
-                      Binge Watch AI uses artificial intelligence to understand genres, themes, and patterns across movies and TV shows, including thrillers, comedies, series, and popular streaming content.
-                    </div>
-                  )}
-                </div>
-                {/* Step 3 */}
-                <div className="border border-white/10 rounded-2xl bg-zinc-900/40 overflow-hidden">
-                  <button 
-                    onClick={() => setOpenHowItWorksStep(openHowItWorksStep === 2 ? null : 2)}
-                    className="w-full px-6 py-5 text-left flex justify-between items-center hover:bg-white/5 transition-colors group"
-                  >
-                    <span className="font-bold text-zinc-200">Step 3 – Get instant recommendations</span>
-                    <span className={`text-zinc-500 transform transition-transform duration-300 ${openHowItWorksStep === 2 ? 'rotate-180 text-netflix-red' : ''}`}>▼</span>
-                  </button>
-                  {openHowItWorksStep === 2 && (
-                    <div className="px-6 pb-6 text-zinc-400 text-sm leading-relaxed animate-fade-in">
-                      Users receive personalized suggestions for movies and TV shows to watch next, including top picks, trending titles, and highly rated content across platforms like Netflix and Amazon Prime — all in under 60 seconds.
-                    </div>
-                  )}
-                </div>
-              </div>
             </div>
           </div>
         );
@@ -289,7 +261,7 @@ const App: React.FC = () => {
               <span className="group-hover:-translate-x-1 transition-transform mr-2">←</span> Back
             </button>
             <h1 className="text-4xl md:text-5xl font-extrabold mb-4 text-center">Your Favorites?</h1>
-            <p className="text-zinc-400 text-center mb-12 text-lg">Type 2–5 movies you love (any language, any genre).</p>
+            <p className="text-zinc-400 text-center mb-12 text-lg">Type 2–5 movies you love.</p>
             <textarea
               className="w-full h-48 bg-zinc-900 border-2 border-white/10 rounded-2xl p-6 text-xl focus:border-netflix-red outline-none transition-all placeholder:text-zinc-700 resize-none mb-4 shadow-inner"
               placeholder="Example: Interstellar, La La Land, Gone Girl..."
@@ -315,7 +287,6 @@ const App: React.FC = () => {
               <span className="group-hover:-translate-x-1 transition-transform mr-2">←</span> Back
             </button>
             <h1 className="text-4xl md:text-5xl font-extrabold mb-4 text-center">What’s the vibe?</h1>
-            <p className="text-zinc-400 text-center mb-12">You can pick more than one</p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {VIBES.map(v => (
                 <button
@@ -336,7 +307,7 @@ const App: React.FC = () => {
               <button 
                 disabled={prefs.vibes.length === 0}
                 onClick={() => setStep(AppStep.CONTENT_TYPE)}
-                className="bg-netflix-red disabled:opacity-50 disabled:cursor-not-allowed hover:bg-red-700 px-10 py-4 rounded-full font-bold text-xl transition-all shadow-lg active:scale-95"
+                className="bg-netflix-red disabled:opacity-50 hover:bg-red-700 px-10 py-4 rounded-full font-bold text-xl transition-all shadow-lg active:scale-95"
               >
                 Next
               </button>
@@ -385,8 +356,7 @@ const App: React.FC = () => {
              <button onClick={() => setStep(AppStep.CONTENT_TYPE)} className="text-zinc-500 hover:text-white mb-8 flex items-center group">
               <span className="group-hover:-translate-x-1 transition-transform mr-2">←</span> Back
             </button>
-            <h1 className="text-4xl md:text-5xl font-extrabold mb-4 text-center">Preferred Languages?</h1>
-            <p className="text-zinc-400 text-center mb-12">We’ll prioritize these, not restrict strictly</p>
+            <h1 className="text-4xl md:text-5xl font-extrabold mb-4 text-center">Languages?</h1>
             <div className="flex flex-wrap justify-center gap-3 mb-12">
               {LANGUAGES.map(lang => (
                 <button
@@ -420,8 +390,7 @@ const App: React.FC = () => {
              <button onClick={() => setStep(AppStep.LANGUAGE)} className="text-zinc-500 hover:text-white mb-8 flex items-center group">
               <span className="group-hover:-translate-x-1 transition-transform mr-2">←</span> Back
             </button>
-            <h1 className="text-4xl md:text-5xl font-extrabold mb-4 text-center">Which era are you in for?</h1>
-            <p className="text-zinc-400 text-center mb-12">Multi-select available</p>
+            <h1 className="text-4xl md:text-5xl font-extrabold mb-4 text-center">Which era?</h1>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-12">
               {ERA_OPTIONS.map(era => (
                 <button
@@ -457,11 +426,10 @@ const App: React.FC = () => {
              <button onClick={() => setStep(AppStep.ERA)} className="text-zinc-500 hover:text-white mb-8 flex items-center group">
               <span className="group-hover:-translate-x-1 transition-transform mr-2">←</span> Back
             </button>
-            <h1 className="text-4xl md:text-5xl font-extrabold mb-4 text-center">What’s on your mind?</h1>
-            <p className="text-zinc-400 text-center mb-12">Magic happens through this text ✨</p>
+            <h1 className="text-4xl md:text-5xl font-extrabold mb-4 text-center">Any specific request?</h1>
             <textarea
               className="w-full h-40 bg-zinc-900 border-2 border-white/10 rounded-2xl p-6 text-xl focus:border-netflix-red outline-none transition-all placeholder:text-zinc-700 resize-none"
-              placeholder="e.g. watching with parents, solo Sunday night, craving a smart Malayalam thriller..."
+              placeholder="e.g. watching with parents, solo Sunday night, craving a smart thriller..."
               value={prefs.magic_text}
               onChange={(e) => setPrefs({...prefs, magic_text: e.target.value})}
             />
@@ -470,7 +438,7 @@ const App: React.FC = () => {
                 onClick={handleGenerate}
                 className="bg-netflix-red hover:bg-red-700 px-12 py-5 rounded-full font-bold text-2xl transition-all shadow-[0_0_30px_rgba(229,9,20,0.4)] active:scale-95"
               >
-                Generate Recommendations
+                Generate List
               </button>
             </div>
           </div>
@@ -493,7 +461,21 @@ const App: React.FC = () => {
               {!isLoading && <NewMoodButton />}
             </div>
 
-            {isLoading ? (
+            {error ? (
+              <div className="max-w-2xl mx-auto p-12 bg-red-900/10 border border-red-500/50 rounded-3xl text-center mb-12">
+                <div className="text-5xl mb-6">🔑</div>
+                <h3 className="text-2xl font-bold text-white mb-4">Configuration Required</h3>
+                <p className="text-zinc-400 text-lg mb-8 leading-relaxed">
+                  Your API Key is missing. To fix this, go to your <b>Vercel Project Settings</b>, add an environment variable named <code className="bg-white/10 px-2 py-1 rounded">API_KEY</code>, and then <b>Redeploy</b> your project.
+                </p>
+                <button 
+                  onClick={handleNewMood}
+                  className="bg-white text-black px-8 py-3 rounded-full font-bold hover:bg-zinc-200 transition-colors"
+                >
+                  Back to Home
+                </button>
+              </div>
+            ) : isLoading ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
                 {[...Array(activeMode === 'fun' ? 5 : 3)].map((_, i) => (
                   <CardSkeleton key={i} />
@@ -520,16 +502,14 @@ const App: React.FC = () => {
                               }}
                             />
                           ) : (
-                            <div className="w-full h-full flex items-center justify-center">
-                               <div className="w-full h-full bg-gradient-to-br from-zinc-800 to-zinc-900 animate-pulse flex items-center justify-center">
-                                  <span className="text-zinc-700 text-6xl">🎬</span>
-                               </div>
+                            <div className="w-full h-full bg-gradient-to-br from-zinc-800 to-zinc-900 animate-pulse flex items-center justify-center">
+                               <span className="text-zinc-700 text-6xl">🎬</span>
                             </div>
                           )}
                           
                           {meta?.rating && (
                             <div className="absolute top-4 right-4 bg-black/70 backdrop-blur-md px-3 py-1 rounded-lg border border-white/10 z-10">
-                              <span className="text-yellow-400 font-bold text-sm">⭐ IMDb {meta.rating}</span>
+                              <span className="text-yellow-400 font-bold text-sm">⭐ {meta.rating}</span>
                             </div>
                           )}
 
@@ -555,22 +535,19 @@ const App: React.FC = () => {
                   {visibleCount < recommendations.length && (
                     <button 
                       onClick={handleShowMore}
-                      className="bg-transparent border-2 border-white/20 text-white hover:bg-white hover:text-black px-12 py-4 rounded-full font-bold text-lg transition-all shadow-xl active:scale-95"
+                      className="bg-transparent border-2 border-white/20 text-white hover:bg-white hover:text-black px-12 py-4 rounded-full font-bold text-lg transition-all active:scale-95"
                     >
                       Load More
                     </button>
                   )}
-                  <div className="flex flex-col items-center space-y-4 pt-10 border-t border-white/10 w-full max-w-lg">
-                    <p className="text-zinc-500 font-medium tracking-wide uppercase text-xs">Want something different?</p>
-                    <NewMoodButton label="Explore New Vibe" />
-                  </div>
+                  <NewMoodButton label="Explore New Vibe" />
                 </div>
               </>
             ) : (
               <div className="text-center py-40">
                 <div className="text-6xl mb-6">🍿</div>
-                <h3 className="text-3xl font-bold mb-4">Uh-oh, looks like we don’t have recommendations for this mood</h3>
-                <p className="text-zinc-500 mb-8">Try adjusting your picks or magic text.</p>
+                <h3 className="text-3xl font-bold mb-4">No results found</h3>
+                <p className="text-zinc-500 mb-8">Try adjusting your mood or keywords.</p>
                 <NewMoodButton label="Start Over" />
               </div>
             )}
@@ -580,7 +557,7 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen custom-scrollbar selection:bg-netflix-red/30 overflow-x-hidden">
+    <div className="min-h-screen custom-scrollbar selection:bg-netflix-red/30 overflow-x-hidden bg-[#141414]">
       <nav className="fixed top-0 w-full z-50 px-6 md:px-12 py-6 flex justify-between items-center bg-gradient-to-b from-black/90 to-transparent backdrop-blur-[2px]">
         <div className="flex items-center space-x-2 group cursor-pointer" onClick={handleNewMood}>
           <div className="w-8 h-8 bg-netflix-red rounded flex items-center justify-center font-black text-xl italic transition-transform group-hover:scale-110">B</div>

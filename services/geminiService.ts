@@ -49,15 +49,21 @@ export const getRecommendationsByMovies = async (movieList: string): Promise<Rec
   - Return the response in the exact JSON schema.
   `;
 
-  // Use Pro model with thinking budget for taste analysis
   return executeGeminiRequest(prompt, 'gemini-3-pro-preview', true);
 };
 
 const executeGeminiRequest = async (prompt: string, model: string, useThinking: boolean = false): Promise<Recommendation[]> => {
-  // Always use the required initialization format
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  // Get API key and clean it (sometimes build tools wrap it in quotes or strings)
+  let apiKey = process.env.API_KEY;
+  
+  // Robust check for missing or invalid key strings
+  if (!apiKey || apiKey === "undefined" || apiKey === "null" || apiKey.trim() === "") {
+    console.error("CRITICAL: API_KEY is missing or invalid in environment.");
+    throw new Error("API_KEY_MISSING");
+  }
 
   try {
+    const ai = new GoogleGenAI({ apiKey });
     const response = await ai.models.generateContent({
       model: model,
       contents: prompt,
@@ -92,20 +98,16 @@ const executeGeminiRequest = async (prompt: string, model: string, useThinking: 
     });
 
     const text = response.text;
-    if (!text) {
-      console.error("Gemini API returned an empty text response.");
-      return [];
-    }
+    if (!text) return [];
 
-    try {
-      const data = JSON.parse(text);
-      return data.recommendations || [];
-    } catch (parseError) {
-      console.error("Failed to parse Gemini JSON response:", text, parseError);
-      return [];
+    const data = JSON.parse(text);
+    return data.recommendations || [];
+  } catch (error: any) {
+    // Catch the specific error the user is seeing from the SDK
+    if (error?.message?.includes("API Key must be set")) {
+      throw new Error("API_KEY_MISSING");
     }
-  } catch (error) {
-    console.error("Gemini API failure:", error);
-    return [];
+    console.error("Gemini Execution Error:", error);
+    throw error;
   }
 };

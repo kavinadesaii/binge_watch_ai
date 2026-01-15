@@ -15,8 +15,16 @@
     <!-- Shim process for browser environment -->
     <script>
       window.process = window.process || { env: {} };
+      
+      // Global error handlers to prevent infinite loading states
       window.addEventListener('error', function(event) {
         console.error('Fatal App Error:', event.error);
+      });
+
+      window.addEventListener('unhandledrejection', function(event) {
+        console.error('Unhandled Promise Rejection:', event.reason);
+        // Dispatch a custom event that the app can listen to if needed
+        window.dispatchEvent(new CustomEvent('app-error', { detail: event.reason }));
       });
     </script>
 
