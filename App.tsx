@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   AppStep, 
   UserPreferences, 
@@ -12,11 +12,7 @@ import {
 import { VIBES, LANGUAGES, CONTENT_TYPES, ERA_OPTIONS, PLACEHOLDER_POSTER } from './constants';
 import { getRecommendations, getRecommendationsByMovies } from './services/geminiService';
 import { fetchOMDBMetadata, OMDBMetadata } from './services/omdbService';
-
-// --- Tracking Helper ---
-const trackEvent = (name: string, params?: any) => {
-  console.log(`[EVENT] ${name}`, params || '');
-};
+import { trackClick, trackPromptSubmission, trackTypingStarted } from './utils/analytics';
 
 const App: React.FC = () => {
   const [step, setStep] = useState<AppStep>(AppStep.ENTRY);
@@ -35,6 +31,10 @@ const App: React.FC = () => {
   const [visibleCount, setVisibleCount] = useState(3);
   const [activeMode, setActiveMode] = useState<'questionnaire' | 'fun' | null>(null);
 
+  // --- Tracking Refs ---
+  const typingTracked = useRef<Record<string, boolean>>({});
+  const firstFocusTime = useRef<Record<string, number>>({});
+
   // Listen for global unhandled errors
   useEffect(() => {
     const handleGlobalError = () => {
@@ -46,52 +46,58 @@ const App: React.FC = () => {
   }, []);
 
   // --- Handlers ---
-  const toggleVibe = (vibe: VibeType) => {
+  const handleToggleVibe = (vibe: VibeType) => {
+    trackClick('button', `vibe_${vibe}`);
     setPrefs(prev => ({
       ...prev,
       vibes: prev.vibes.includes(vibe) 
         ? prev.vibes.filter(v => v !== vibe)
         : [...prev.vibes, vibe]
     }));
-    trackEvent('vibe_selected', { vibe });
   };
 
-  const toggleContentType = (type: ContentType) => {
+  const handleToggleContentType = (type: ContentType) => {
+    trackClick('button', `content_type_${type}`);
     setPrefs(prev => ({
       ...prev,
       content_type: prev.content_type.includes(type)
         ? prev.content_type.filter(t => t !== type)
         : [...prev.content_type, type]
     }));
-    trackEvent('content_type_selected', { type });
   };
 
-  const toggleLanguage = (lang: LanguageType) => {
+  const handleToggleLanguage = (lang: LanguageType) => {
+    trackClick('button', `lang_${lang}`);
     setPrefs(prev => ({
       ...prev,
       language_preference: prev.language_preference.includes(lang)
         ? prev.language_preference.filter(l => l !== lang)
         : [...prev.language_preference, lang]
     }));
-    trackEvent('language_selected', { language: lang });
   };
 
-  const toggleEra = (era: EraType) => {
+  const handleToggleEra = (era: EraType) => {
+    trackClick('button', `era_${era}`);
     setPrefs(prev => ({
       ...prev,
       era_preference: prev.era_preference.includes(era)
         ? prev.era_preference.filter(e => e !== era)
         : [...prev.era_preference, era]
     }));
-    trackEvent('era_selected', { era });
   };
 
   const handleGenerate = async () => {
-    trackEvent('generate_clicked', { mode: activeMode });
+    const inputId = activeMode === 'fun' ? 'input_movies' : 'magic_text';
+    const textValue = activeMode === 'fun' ? (prefs.input_movies || '') : prefs.magic_text;
+    const timeSpent = firstFocusTime.current[inputId] ? Date.now() - firstFocusTime.current[inputId] : 0;
+    
+    // Privacy-safe tracking
+    trackPromptSubmission(inputId, textValue, timeSpent);
+    trackClick('button', 'generate_recommendations');
+
     setStep(AppStep.RESULTS);
     setIsLoading(true);
     setError(null);
-    const generationStart = Date.now();
 
     try {
       let results: Recommendation[] = [];
@@ -104,11 +110,6 @@ const App: React.FC = () => {
       }
 
       setRecommendations(results);
-
-      trackEvent('recommendations_generated', {
-        count_returned: results.length,
-        latency_ms: Date.now() - generationStart
-      });
 
       // Metadata fetching is non-blocking to UI
       results.forEach(async (rec) => {
@@ -134,6 +135,7 @@ const App: React.FC = () => {
   };
 
   const handleShowMore = () => {
+    trackClick('button', 'load_more_results');
     let nextCount = visibleCount;
     if (visibleCount === 3) {
       nextCount = 6;
@@ -141,11 +143,10 @@ const App: React.FC = () => {
       nextCount = recommendations.length;
     }
     setVisibleCount(nextCount);
-    trackEvent('show_more_clicked');
   };
 
   const handleNewMood = () => {
-    trackEvent('new_mood_clicked');
+    trackClick('button', 'reset_app');
     setStep(AppStep.ENTRY);
     setError(null);
     setPrefs({ vibes: [], content_type: [], language_preference: [], era_preference: [], magic_text: '', input_movies: '' });
@@ -154,6 +155,17 @@ const App: React.FC = () => {
     setVisibleCount(3);
     setActiveMode(null);
     setIsLoading(false);
+    typingTracked.current = {};
+    firstFocusTime.current = {};
+  };
+
+  const handleInputChange = (id: string, value: string) => {
+    if (!typingTracked.current[id]) {
+      trackTypingStarted(id);
+      typingTracked.current[id] = true;
+      firstFocusTime.current[id] = Date.now();
+    }
+    setPrefs({...prefs, [id]: value});
   };
 
   const NewMoodButton = ({ className = "", label = "New Mood" }) => (
@@ -198,6 +210,7 @@ const App: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-16">
               <button 
                 onClick={() => {
+                  trackClick('card', 'mode_questionnaire');
                   setActiveMode('questionnaire');
                   setStep(AppStep.VIBE);
                 }}
@@ -222,6 +235,7 @@ const App: React.FC = () => {
 
               <button 
                 onClick={() => {
+                  trackClick('card', 'mode_fun');
                   setActiveMode('fun');
                   setStep(AppStep.FUN_MODE_INPUT);
                 }}
@@ -259,7 +273,7 @@ const App: React.FC = () => {
               className="w-full h-48 bg-zinc-900 border-2 border-white/10 rounded-2xl p-6 text-xl focus:border-netflix-red outline-none transition-all placeholder:text-zinc-700 resize-none mb-4 shadow-inner"
               placeholder="Example: Interstellar, La La Land, Gone Girl..."
               value={prefs.input_movies}
-              onChange={(e) => setPrefs({...prefs, input_movies: e.target.value})}
+              onChange={(e) => handleInputChange('input_movies', e.target.value)}
             />
             <div className="flex justify-center mt-8">
               <button 
@@ -284,7 +298,7 @@ const App: React.FC = () => {
               {VIBES.map(v => (
                 <button
                   key={v.label}
-                  onClick={() => toggleVibe(v.label)}
+                  onClick={() => handleToggleVibe(v.label)}
                   className={`p-6 rounded-xl border-2 text-left transition-all duration-300 flex items-center space-x-4 ${
                     prefs.vibes.includes(v.label) 
                       ? 'border-netflix-red bg-netflix-red/10 scale-[1.02]' 
@@ -299,7 +313,10 @@ const App: React.FC = () => {
             <div className="mt-12 flex justify-center">
               <button 
                 disabled={prefs.vibes.length === 0}
-                onClick={() => setStep(AppStep.CONTENT_TYPE)}
+                onClick={() => {
+                  trackClick('button', 'next_from_vibe');
+                  setStep(AppStep.CONTENT_TYPE);
+                }}
                 className="bg-netflix-red disabled:opacity-50 hover:bg-red-700 px-10 py-4 rounded-full font-bold text-xl transition-all shadow-lg active:scale-95"
               >
                 Next
@@ -319,7 +336,7 @@ const App: React.FC = () => {
               {CONTENT_TYPES.map(t => (
                 <button
                   key={t.label}
-                  onClick={() => toggleContentType(t.label)}
+                  onClick={() => handleToggleContentType(t.label)}
                   className={`p-10 rounded-2xl border-2 text-center transition-all duration-300 ${
                     prefs.content_type.includes(t.label) 
                       ? 'border-netflix-red bg-netflix-red/10 scale-[1.05]' 
@@ -334,7 +351,10 @@ const App: React.FC = () => {
             <div className="mt-12 flex justify-center">
               <button 
                 disabled={prefs.content_type.length === 0}
-                onClick={() => setStep(AppStep.LANGUAGE)}
+                onClick={() => {
+                  trackClick('button', 'next_from_content');
+                  setStep(AppStep.LANGUAGE);
+                }}
                 className="bg-netflix-red disabled:opacity-50 hover:bg-red-700 px-10 py-4 rounded-full font-bold text-xl transition-all shadow-lg active:scale-95"
               >
                 Next
@@ -354,7 +374,7 @@ const App: React.FC = () => {
               {LANGUAGES.map(lang => (
                 <button
                   key={lang}
-                  onClick={() => toggleLanguage(lang)}
+                  onClick={() => handleToggleLanguage(lang)}
                   className={`px-6 py-3 rounded-full border-2 transition-all duration-300 ${
                     prefs.language_preference.includes(lang) 
                       ? 'border-netflix-red bg-netflix-red text-white' 
@@ -368,7 +388,10 @@ const App: React.FC = () => {
             <div className="flex justify-center">
               <button 
                 disabled={prefs.language_preference.length === 0}
-                onClick={() => setStep(AppStep.ERA)}
+                onClick={() => {
+                  trackClick('button', 'next_from_lang');
+                  setStep(AppStep.ERA);
+                }}
                 className="bg-netflix-red disabled:opacity-50 hover:bg-red-700 px-10 py-4 rounded-full font-bold text-xl transition-all shadow-lg active:scale-95"
               >
                 Next
@@ -388,7 +411,7 @@ const App: React.FC = () => {
               {ERA_OPTIONS.map(era => (
                 <button
                   key={era.label}
-                  onClick={() => toggleEra(era.label)}
+                  onClick={() => handleToggleEra(era.label)}
                   className={`p-6 rounded-2xl border-2 text-center transition-all duration-300 flex flex-col items-center group ${
                     prefs.era_preference.includes(era.label) 
                       ? 'border-netflix-red bg-netflix-red/10 scale-[1.02]' 
@@ -404,7 +427,10 @@ const App: React.FC = () => {
             <div className="flex justify-center">
               <button 
                 disabled={prefs.era_preference.length === 0}
-                onClick={() => setStep(AppStep.MAGIC_TEXT)}
+                onClick={() => {
+                  trackClick('button', 'next_from_era');
+                  setStep(AppStep.MAGIC_TEXT);
+                }}
                 className="bg-netflix-red disabled:opacity-50 hover:bg-red-700 px-10 py-4 rounded-full font-bold text-xl transition-all shadow-lg active:scale-95"
               >
                 Next
@@ -424,7 +450,7 @@ const App: React.FC = () => {
               className="w-full h-40 bg-zinc-900 border-2 border-white/10 rounded-2xl p-6 text-xl focus:border-netflix-red outline-none transition-all placeholder:text-zinc-700 resize-none"
               placeholder="e.g. watching with parents, solo Sunday night, craving a smart thriller..."
               value={prefs.magic_text}
-              onChange={(e) => setPrefs({...prefs, magic_text: e.target.value})}
+              onChange={(e) => handleInputChange('magic_text', e.target.value)}
             />
             <div className="mt-12 flex justify-center">
               <button 
@@ -477,7 +503,10 @@ const App: React.FC = () => {
                     Back to Home
                   </button>
                   <button 
-                    onClick={() => window.location.reload()}
+                    onClick={() => {
+                      trackClick('button', 'check_api_again');
+                      window.location.reload();
+                    }}
                     className="bg-zinc-800 text-white px-8 py-3 rounded-full font-bold hover:bg-zinc-700 transition-colors"
                   >
                     Check Again

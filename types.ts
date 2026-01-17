@@ -45,7 +45,33 @@ export enum AppStep {
   RESULTS = 'results'
 }
 
-export interface TrackingEvent {
-  event: string;
-  params?: Record<string, any>;
+// --- Tracking Schema ---
+
+export type ElementType = 'button' | 'link' | 'card' | 'icon' | 'input';
+
+export interface PromptSubmittedEvent {
+  input_id: string;
+  text_length: number;
+  word_count: number;
+  time_to_submit_ms: number;
+  page_url: string;
+  timestamp: string;
 }
+
+export interface PromptTypingStartedEvent {
+  input_id: string;
+  page_url: string;
+  timestamp: string;
+}
+
+export interface ClickEvent {
+  element_type: ElementType;
+  element_id: string;
+  page_url: string;
+  timestamp: string;
+}
+
+export type TrackingPayload = 
+  | { event: 'prompt_submitted'; params: PromptSubmittedEvent }
+  | { event: 'prompt_typing_started'; params: PromptTypingStartedEvent }
+  | { event: 'click_event'; params: ClickEvent };
